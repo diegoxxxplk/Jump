@@ -1,38 +1,40 @@
 -- Serviços
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- GUI
 local gui = Instance.new("ScreenGui")
-gui.Name = "JumpShowdownUI"
+gui.Name = "MultiFunctionUI"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 
 -- Botão abrir/fechar
 local openBtn = Instance.new("TextButton")
-openBtn.Size = UDim2.new(0, 120, 0, 40)
+openBtn.Size = UDim2.new(0, 130, 0, 40)
 openBtn.Position = UDim2.new(0, 20, 0, 20)
-openBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-openBtn.TextColor3 = Color3.new(1,1,1)
+openBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+openBtn.TextColor3 = Color3.new(1, 1, 1)
 openBtn.Font = Enum.Font.SourceSansBold
 openBtn.TextScaled = true
 openBtn.Text = "Abrir Menu"
 openBtn.Parent = gui
 
--- Menu com scroll
+-- Menu scroll
 local menu = Instance.new("ScrollingFrame")
-menu.Size = UDim2.new(0, 250, 0, 300)
+menu.Size = UDim2.new(0, 270, 0, 400)
 menu.Position = UDim2.new(0, 20, 0, 70)
-menu.BackgroundColor3 = Color3.fromRGB(30,30,30)
+menu.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 menu.ScrollBarThickness = 6
 menu.CanvasSize = UDim2.new(0, 0, 0, 0) -- Ajustado dinamicamente
 menu.Visible = false
 menu.Parent = gui
 
 local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 5)
+layout.Padding = UDim.new(0, 6)
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = menu
 
@@ -43,12 +45,17 @@ local states = {
     comboAutomatico = false,
     defesaAutomatica = false,
     superRun = false,
+    infiniteStamina = false,
+    autoJump = false,
+    teleportClosest = false,
+    autoHeal = false,
+    antiRagdoll = false,
 }
 
--- Função para criar botão toggle
+-- Criar botão toggle
 local function createToggleButton(name, key)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 40)
+    btn.Size = UDim2.new(1, -12, 0, 40)
     btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.SourceSansBold
@@ -64,12 +71,17 @@ local function createToggleButton(name, key)
     return btn
 end
 
--- Criar os botões
-local aimbotBtn = createToggleButton("Aimbot", "aimbot")
-local autoFarmBtn = createToggleButton("Auto Farm Kill", "autoFarmKill")
-local comboBtn = createToggleButton("Combo Automático", "comboAutomatico")
-local defesaBtn = createToggleButton("Defesa Automática", "defesaAutomatica")
-local superRunBtn = createToggleButton("Super Run", "superRun")
+-- Criar botões
+local btnAimbot = createToggleButton("Aimbot", "aimbot")
+local btnAutoFarm = createToggleButton("Auto Farm Kill", "autoFarmKill")
+local btnCombo = createToggleButton("Combo Automático", "comboAutomatico")
+local btnDefesa = createToggleButton("Defesa Automática", "defesaAutomatica")
+local btnSuperRun = createToggleButton("Super Run", "superRun")
+local btnInfiniteStamina = createToggleButton("Infinite Stamina", "infiniteStamina")
+local btnAutoJump = createToggleButton("Auto Jump", "autoJump")
+local btnTeleportClosest = createToggleButton("Teleport to Closest", "teleportClosest")
+local btnAutoHeal = createToggleButton("Auto Heal", "autoHeal")
+local btnAntiRagdoll = createToggleButton("Anti Ragdoll", "antiRagdoll")
 
 -- Abrir/fechar menu
 openBtn.MouseButton1Click:Connect(function()
@@ -77,7 +89,7 @@ openBtn.MouseButton1Click:Connect(function()
     openBtn.Text = menu.Visible and "Fechar Menu" or "Abrir Menu"
 end)
 
--- Funções base (você pode personalizar aqui)
+-- Funções auxiliares
 local function getClosestEnemy()
     local closest, dist = nil, math.huge
     local char = player.Character
@@ -94,9 +106,30 @@ local function getClosestEnemy()
     return closest
 end
 
-local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+local function pressSkill(id)
+    -- Exemplo: envia input virtual (não funciona em mobile)
+    local vu = game:GetService("VirtualInputManager")
+    vu:SendKeyEvent(true, Enum.KeyCode[tostring(id)], false, game)
+    task.wait(0.05)
+    vu:SendKeyEvent(false, Enum.KeyCode[tostring(id)], false, game)
+end
 
+local hum = nil
+local char = nil
+
+local function updateChar()
+    char = player.Character or player.CharacterAdded:Wait()
+    hum = char:FindFirstChildOfClass("Humanoid")
+end
+
+updateChar()
+player.CharacterAdded:Connect(updateChar)
+
+-- Loop principal
 RunService.RenderStepped:Connect(function()
+    if not hum then return end
+
+    -- Aimbot
     if states.aimbot then
         local target = getClosestEnemy()
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
@@ -106,16 +139,57 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    if states.defesaAutomatica and hum then
+    -- Defesa automática
+    if states.defesaAutomatica then
         if hum:GetState() == Enum.HumanoidStateType.FallingDown or hum:GetState() == Enum.HumanoidStateType.Ragdoll then
             hum:ChangeState(Enum.HumanoidStateType.GettingUp)
         end
     end
 
-    if states.superRun and hum then
+    -- Super Run
+    if states.superRun then
         hum.WalkSpeed = 50
     else
-        if hum then hum.WalkSpeed = 16 end
+        hum.WalkSpeed = 16
+    end
+
+    -- Infinite Stamina (se existir atributo stamina)
+    if states.infiniteStamina then
+        if hum:GetAttribute("Stamina") then
+            hum:SetAttribute("Stamina", 100000)
+        end
+    end
+
+    -- Auto Jump
+    if states.autoJump then
+        if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
+            hum.Jump = true
+        end
+    end
+
+    -- Auto Heal (se o humanoid tiver Health)
+    if states.autoHeal then
+        if hum.Health < hum.MaxHealth then
+            hum.Health = hum.MaxHealth
+        end
+    end
+
+    -- Anti Ragdoll
+    if states.antiRagdoll then
+        if hum:GetState() == Enum.HumanoidStateType.Ragdoll then
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+    end
+
+    -- Teleport to closest enemy
+    if states.teleportClosest then
+        local target = getClosestEnemy()
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local myRoot = char:FindFirstChild("HumanoidRootPart")
+            if myRoot then
+                myRoot.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+            end
+        end
     end
 end)
 
@@ -123,21 +197,17 @@ end)
 task.spawn(function()
     while true do
         if states.autoFarmKill then
-            local target = getClosestEnemy()
-            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                local char = player.Character
-                local myRoot = char and char:FindFirstChild("HumanoidRootPart")
-                if myRoot then
-                    myRoot.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
-                    -- Aqui você pode adicionar a função para ativar a skill
-                    print("AutoFarmKill ativando skill")
-                end
-            end
+            -- Exemplo: ativar skill (você pode modificar para ativar evento do jogo)
+            print("Auto Farm Kill ativo - ativando skill")
+            pressSkill(1) -- tenta ativar skill 1
         end
 
         if states.comboAutomatico then
-            -- Aqui você pode colocar o combo automático
             print("Combo automático rodando")
+            for i = 1, 4 do
+                pressSkill(i)
+                task.wait(0.1)
+            end
         end
 
         task.wait(0.5)
