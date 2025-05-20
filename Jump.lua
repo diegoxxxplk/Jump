@@ -1,134 +1,122 @@
+-- Jump Showdown Mobile Hub - Roblox Script
+-- Recursos: Super Run, Aimbot de Peito, Defesa Automática, Combo Automático
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local Solara = require(game.ReplicatedStorage.Solara)
 
-local indigo = Color3.fromRGB(75, 0, 130)
-local periwinkle = Color3.fromRGB(204, 204, 255)
+-- Configurações
+local SPEED_MULTIPLIER = 2.5
+local COMBO_DISTANCE = 8
 
-local function JumpShowdownHub()
-    local lockedTarget, setLockedTarget = Solara.useState(nil)
-    local lockOnActive, setLockOnActive = Solara.useState(false)
-    local behindUEnabled, setBehindUEnabled = Solara.useState(false)
-    local teleportEnabled, setTeleportEnabled = Solara.useState(false)
-    local playerList, setPlayerList = Solara.useState(Players:GetPlayers())
+-- Estado dos recursos
+local superRun = false
+local aimbotActive = false
+local autoGuard = false
+local autoCombo = false
 
-    Solara.useEffect(function()
-        local function updatePlayers()
-            setPlayerList(Players:GetPlayers())
-        end
-        Players.PlayerAdded:Connect(updatePlayers)
-        Players.PlayerRemoving:Connect(updatePlayers)
-    end, {})
+-- Interface simples
+local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+ScreenGui.ResetOnSpawn = false
 
-    local function handleTeleport()
-        if teleportEnabled and lockedTarget and LocalPlayer.Character then
-            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            local targetRoot = lockedTarget.Character and lockedTarget.Character:FindFirstChild("HumanoidRootPart")
-            if root and targetRoot then
-                root.CFrame = CFrame.new(targetRoot.Position + Vector3.new(0, 3, 0))
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Position = UDim2.new(0, 10, 0.4, 0)
+Frame.Size = UDim2.new(0, 180, 0, 200)
+Frame.BackgroundTransparency = 0.3
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Frame.BorderSizePixel = 0
+
+local function createButton(text, yPos, callback)
+    local btn = Instance.new("TextButton", Frame)
+    btn.Size = UDim2.new(1, 0, 0, 35)
+    btn.Position = UDim2.new(0, 0, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 18
+    btn.Text = text
+    btn.MouseButton1Click:Connect(callback)
+    return btn
+end
+
+createButton("Super Run", 0, function()
+    superRun = not superRun
+end)
+
+createButton("Aimbot Peito", 40, function()
+    aimbotActive = not aimbotActive
+end)
+
+createButton("Defesa Auto", 80, function()
+    autoGuard = not autoGuard
+end)
+
+createButton("Auto Combo", 120, function()
+    autoCombo = not autoCombo
+end)
+
+-- Função de aimbot no peito do alvo mais próximo
+local function getNearestEnemy()
+    local closest
+    local shortest = math.huge
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+            if distance < shortest then
+                closest = player
+                shortest = distance
             end
         end
     end
-
-    Solara.useRenderStep("CameraControl", function()
-        local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        local targetRoot = lockedTarget and lockedTarget.Character and lockedTarget.Character:FindFirstChild("HumanoidRootPart")
-
-        if behindUEnabled and targetRoot and myRoot then
-            local offset = targetRoot.CFrame.LookVector * -2
-            myRoot.CFrame = CFrame.new(targetRoot.Position + offset + Vector3.new(0, 1, 0), targetRoot.Position)
-            Camera.CameraType = Enum.CameraType.Custom
-        elseif lockOnActive and targetRoot and myRoot then
-            local cameraOffset = Vector3.new(0, 4, -8)
-            local desiredPos = myRoot.Position + cameraOffset
-            local lookAt = targetRoot.Position + Vector3.new(0, 2, 0)
-            Camera.CameraType = Enum.CameraType.Scriptable
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(desiredPos, lookAt), 0.35)
-        else
-            Camera.CameraType = Enum.CameraType.Custom
-        end
-    end)
-
-    return Solara.createFragment{
-        MainWindow = Solara.Window {
-            Name = "JumpShowdownMobileUI",
-            Title = "Jump Showdown Hub (Mobile)",
-            Size = UDim2.new(0, 360, 0, 460),
-            MinSize = Vector2.new(340, 420),
-            BackgroundColor = indigo,
-            Draggable = true,
-
-            Solara.Frame {
-                Size = UDim2.new(1, 0, 1, 0),
-                Padding = 12,
-                BackgroundTransparency = 1,
-
-                LayoutOrder = {
-                    Solara.Text {
-                        Text = "Jump Showdown Lock-On (Mobile)",
-                        TextSize = 24,
-                        TextColor = periwinkle,
-                        Font = Enum.Font.SourceSansBold
-                    },
-
-                    Solara.ScrollView {
-                        Size = UDim2.new(1, 0, 0, 150),
-                        BackgroundColor = indigo,
-                        ForEach = playerList,
-                        OnRender = function(player)
-                            if player == LocalPlayer then return end
-                            return Solara.Button {
-                                Text = string.format("%s   [%s]", player.DisplayName or player.Name, player.Name),
-                                Size = UDim2.new(1, 0, 0, 30),
-                                BackgroundColor = periwinkle,
-                                TextColor = indigo,
-                                OnClick = function() setLockedTarget(player) end,
-                                Margin = { Bottom = 4 },
-                                CornerRadius = 8
-                            }
-                        end
-                    },
-
-                    Solara.Button {
-                        Text = "Lock-On: " .. (lockOnActive and "ON" or "OFF"),
-                        OnClick = function() setLockOnActive(not lockOnActive) end,
-                        BackgroundColor = periwinkle,
-                        TextColor = indigo,
-                        CornerRadius = 10
-                    },
-
-                    Solara.Button {
-                        Text = "BehindU (AutoFarm): " .. (behindUEnabled and "ON" or "OFF"),
-                        OnClick = function() setBehindUEnabled(not behindUEnabled) end,
-                        BackgroundColor = periwinkle,
-                        TextColor = indigo,
-                        CornerRadius = 10
-                    },
-
-                    Solara.Button {
-                        Text = "Teleporte: " .. (teleportEnabled and "ON" or "OFF"),
-                        OnClick = function()
-                            setTeleportEnabled(true)
-                            handleTeleport()
-                            task.wait(0.3)
-                            setTeleportEnabled(false)
-                        end,
-                        BackgroundColor = periwinkle,
-                        TextColor = indigo,
-                        CornerRadius = 10
-                    },
-
-                    Solara.Text {
-                        Text = "Toque para teleportar.\nSelecione jogador para Lock-On.",
-                        TextColor = periwinkle,
-                        TextSize = 16
-                    }
-                }
-            }
-        }
-    }
+    return closest
 end
 
-return JumpShowdownHub
+-- Loop principal
+RunService.RenderStepped:Connect(function()
+    local character = LocalPlayer.Character
+    if not character then return end
+
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+    if superRun and humanoid then
+        humanoid.WalkSpeed = 16 * SPEED_MULTIPLIER
+    else
+        humanoid.WalkSpeed = 16
+    end
+
+    if aimbotActive then
+        local target = getNearestEnemy()
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local aimPos = target.Character.HumanoidRootPart.Position + Vector3.new(0, 1.5, 0)
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimPos)
+        end
+    end
+
+    if autoGuard then
+        if character:FindFirstChild("Ragdoll") then
+            character.Ragdoll:Destroy()
+        end
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+        end
+    end
+
+    if autoCombo then
+        local target = getNearestEnemy()
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            if (target.Character.HumanoidRootPart.Position - hrp.Position).Magnitude <= COMBO_DISTANCE then
+                for _, tool in ipairs(LocalPlayer.Backpack:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        tool.Parent = character
+                        tool:Activate()
+                    end
+                end
+            end
+        end
+    end
+end)
+
+print("Jump Showdown Hub Ativado para Mobile.")
