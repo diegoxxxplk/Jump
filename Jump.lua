@@ -1,215 +1,137 @@
--- Serviços
+-- Jump Showdown Script Insano Mobile Edition
+-- Feito por ChatGPT + Você
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local VirtualInput = game:GetService("VirtualInputManager")
+local UIS = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
-local PlayerGui = player:WaitForChild("PlayerGui")
+local char = player.Character or player.CharacterAdded:Wait()
+local hum = char:WaitForChild("Humanoid")
+local root = char:WaitForChild("HumanoidRootPart")
 
 -- GUI
-local gui = Instance.new("ScreenGui")
-gui.Name = "MultiFunctionUI"
-gui.ResetOnSpawn = false
-gui.Parent = PlayerGui
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "JumpMenu"
 
--- Botão abrir/fechar
-local openBtn = Instance.new("TextButton")
-openBtn.Size = UDim2.new(0, 130, 0, 40)
-openBtn.Position = UDim2.new(0, 20, 0, 20)
-openBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-openBtn.TextColor3 = Color3.new(1, 1, 1)
-openBtn.Font = Enum.Font.SourceSansBold
-openBtn.TextScaled = true
-openBtn.Text = "Abrir Menu"
-openBtn.Parent = gui
+local openButton = Instance.new("TextButton", gui)
+openButton.Size = UDim2.new(0, 140, 0, 40)
+openButton.Position = UDim2.new(0, 20, 0, 100)
+openButton.Text = "Abrir Menu"
+openButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+openButton.TextColor3 = Color3.new(1,1,1)
 
--- Menu scroll
-local menu = Instance.new("ScrollingFrame")
-menu.Size = UDim2.new(0, 270, 0, 400)
-menu.Position = UDim2.new(0, 20, 0, 70)
-menu.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+local menu = Instance.new("ScrollingFrame", gui)
+menu.Size = UDim2.new(0, 260, 0, 330)
+menu.Position = UDim2.new(0, 20, 0, 150)
+menu.CanvasSize = UDim2.new(0, 0, 2, 0)
 menu.ScrollBarThickness = 6
-menu.CanvasSize = UDim2.new(0, 0, 0, 0) -- Ajustado dinamicamente
 menu.Visible = false
-menu.Parent = gui
+menu.BackgroundColor3 = Color3.fromRGB(40,40,40)
 
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 6)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = menu
+openButton.MouseButton1Click:Connect(function()
+	menu.Visible = not menu.Visible
+end)
 
 -- Estados
-local states = {
-    aimbot = false,
-    autoFarmKill = false,
-    comboAutomatico = false,
-    defesaAutomatica = false,
-    superRun = false,
-    infiniteStamina = false,
-    autoJump = false,
-    teleportClosest = false,
-    autoHeal = false,
-    antiRagdoll = false,
-}
+local superRun = false
+local turboAttack = false
+local autoDash = false
+local godstep = false
+local antiRagdoll = false
+local resetCooldown = false
 
--- Criar botão toggle
-local function createToggleButton(name, key)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -12, 0, 40)
-    btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextScaled = true
-    btn.Text = name .. ": OFF"
-    btn.Parent = menu
-
-    btn.MouseButton1Click:Connect(function()
-        states[key] = not states[key]
-        btn.Text = name .. ": " .. (states[key] and "ON" or "OFF")
-    end)
-
-    return btn
+-- Cria botão
+local function criarBotao(texto, ordem, callback)
+	local btn = Instance.new("TextButton", menu)
+	btn.Size = UDim2.new(1, -10, 0, 40)
+	btn.Position = UDim2.new(0, 5, 0, 5 + ((ordem - 1) * 45))
+	btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Font = Enum.Font.SourceSansBold
+	btn.TextScaled = true
+	btn.Text = texto
+	btn.MouseButton1Click:Connect(callback)
+	return btn
 end
 
--- Criar botões
-local btnAimbot = createToggleButton("Aimbot", "aimbot")
-local btnAutoFarm = createToggleButton("Auto Farm Kill", "autoFarmKill")
-local btnCombo = createToggleButton("Combo Automático", "comboAutomatico")
-local btnDefesa = createToggleButton("Defesa Automática", "defesaAutomatica")
-local btnSuperRun = createToggleButton("Super Run", "superRun")
-local btnInfiniteStamina = createToggleButton("Infinite Stamina", "infiniteStamina")
-local btnAutoJump = createToggleButton("Auto Jump", "autoJump")
-local btnTeleportClosest = createToggleButton("Teleport to Closest", "teleportClosest")
-local btnAutoHeal = createToggleButton("Auto Heal", "autoHeal")
-local btnAntiRagdoll = createToggleButton("Anti Ragdoll", "antiRagdoll")
+-- Funções dos botões
 
--- Abrir/fechar menu
-openBtn.MouseButton1Click:Connect(function()
-    menu.Visible = not menu.Visible
-    openBtn.Text = menu.Visible and "Fechar Menu" or "Abrir Menu"
+local btnRun = criarBotao("Super Run: OFF", 1, function()
+	superRun = not superRun
+	btnRun.Text = "Super Run: " .. (superRun and "ON" or "OFF")
 end)
 
--- Funções auxiliares
-local function getClosestEnemy()
-    local closest, dist = nil, math.huge
-    local char = player.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= player and p.Team ~= player.Team and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local mag = (char.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
-            if mag < dist then
-                dist = mag
-                closest = p
-            end
-        end
-    end
-    return closest
-end
+local btnAtk = criarBotao("Ataque Turbo: OFF", 2, function()
+	turboAttack = not turboAttack
+	btnAtk.Text = "Ataque Turbo: " .. (turboAttack and "ON" or "OFF")
+end)
 
-local function pressSkill(id)
-    -- Exemplo: envia input virtual (não funciona em mobile)
-    local vu = game:GetService("VirtualInputManager")
-    vu:SendKeyEvent(true, Enum.KeyCode[tostring(id)], false, game)
-    task.wait(0.05)
-    vu:SendKeyEvent(false, Enum.KeyCode[tostring(id)], false, game)
-end
+local btnDash = criarBotao("Auto Dash: OFF", 3, function()
+	autoDash = not autoDash
+	btnDash.Text = "Auto Dash: " .. (autoDash and "ON" or "OFF")
+end)
 
-local hum = nil
-local char = nil
+local btnRagdoll = criarBotao("Anti-Ragdoll Extremo: OFF", 4, function()
+	antiRagdoll = not antiRagdoll
+	btnRagdoll.Text = "Anti-Ragdoll Extremo: " .. (antiRagdoll and "ON" or "OFF")
+end)
 
-local function updateChar()
-    char = player.Character or player.CharacterAdded:Wait()
-    hum = char:FindFirstChildOfClass("Humanoid")
-end
+local btnGod = criarBotao("Godstep: OFF", 5, function()
+	godstep = not godstep
+	btnGod.Text = "Godstep: " .. (godstep and "ON" or "OFF")
+end)
 
-updateChar()
-player.CharacterAdded:Connect(updateChar)
+local btnReset = criarBotao("Reset Cooldown", 6, function()
+	if char then
+		for _, v in pairs(char:GetDescendants()) do
+			if v:IsA("NumberValue") and v.Name:lower():find("cooldown") then
+				v.Value = 0
+			end
+		end
+	end
+end)
 
--- Loop principal
+-- Loop de execução
 RunService.RenderStepped:Connect(function()
-    if not hum then return end
+	if superRun and hum then
+		hum.WalkSpeed = 60
+	else
+		hum.WalkSpeed = 16
+	end
 
-    -- Aimbot
-    if states.aimbot then
-        local target = getClosestEnemy()
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local cam = workspace.CurrentCamera
-            local root = target.Character.HumanoidRootPart
-            cam.CFrame = CFrame.new(cam.CFrame.Position, root.Position)
-        end
-    end
+	if antiRagdoll and hum then
+		local state = hum:GetState()
+		if state == Enum.HumanoidStateType.FallingDown or state == Enum.HumanoidStateType.Ragdoll then
+			hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
+	end
 
-    -- Defesa automática
-    if states.defesaAutomatica then
-        if hum:GetState() == Enum.HumanoidStateType.FallingDown or hum:GetState() == Enum.HumanoidStateType.Ragdoll then
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
-    end
+	if autoDash then
+		for _, enemy in pairs(Players:GetPlayers()) do
+			if enemy ~= player and enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart") then
+				local dist = (enemy.Character.HumanoidRootPart.Position - root.Position).Magnitude
+				if dist < 8 then
+					root.CFrame = root.CFrame * CFrame.new(0, 0, -10)
+				end
+			end
+		end
+	end
 
-    -- Super Run
-    if states.superRun then
-        hum.WalkSpeed = 50
-    else
-        hum.WalkSpeed = 16
-    end
-
-    -- Infinite Stamina (se existir atributo stamina)
-    if states.infiniteStamina then
-        if hum:GetAttribute("Stamina") then
-            hum:SetAttribute("Stamina", 100000)
-        end
-    end
-
-    -- Auto Jump
-    if states.autoJump then
-        if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
-            hum.Jump = true
-        end
-    end
-
-    -- Auto Heal (se o humanoid tiver Health)
-    if states.autoHeal then
-        if hum.Health < hum.MaxHealth then
-            hum.Health = hum.MaxHealth
-        end
-    end
-
-    -- Anti Ragdoll
-    if states.antiRagdoll then
-        if hum:GetState() == Enum.HumanoidStateType.Ragdoll then
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
-    end
-
-    -- Teleport to closest enemy
-    if states.teleportClosest then
-        local target = getClosestEnemy()
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local myRoot = char:FindFirstChild("HumanoidRootPart")
-            if myRoot then
-                myRoot.CFrame = target.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
-            end
-        end
-    end
+	if godstep then
+		if UIS:IsKeyDown(Enum.KeyCode.W) then
+			root.CFrame = root.CFrame * CFrame.new(0, 0, -2)
+		end
+	end
 end)
 
--- Loop farm kill e combo automático
 task.spawn(function()
-    while true do
-        if states.autoFarmKill then
-            -- Exemplo: ativar skill (você pode modificar para ativar evento do jogo)
-            print("Auto Farm Kill ativo - ativando skill")
-            pressSkill(1) -- tenta ativar skill 1
-        end
-
-        if states.comboAutomatico then
-            print("Combo automático rodando")
-            for i = 1, 4 do
-                pressSkill(i)
-                task.wait(0.1)
-            end
-        end
-
-        task.wait(0.5)
-    end
+	while true do
+		if turboAttack then
+			VirtualInput:SendKeyEvent(true, Enum.KeyCode.ButtonR2, false, game)
+			task.wait(0.2)
+		end
+		task.wait(0.1)
+	end
 end)
