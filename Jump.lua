@@ -21,6 +21,8 @@ local function createExploitUI()
     local superRun, setSuperRun = Solara.useState(false)
     local autoGuard, setAutoGuard = Solara.useState(false)
     local aimbot, setAimbot = Solara.useState(false)
+    local autoJump, setAutoJump = Solara.useState(false)
+    local godStep, setGodStep = Solara.useState(false)
 
     Solara.useRenderStep("SuperRun", function()
         if superRun and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -41,12 +43,27 @@ local function createExploitUI()
         if aimbot then
             for _, player in pairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local head = player.Character:FindFirstChild("Head")
-                    if head then
-                        Camera.CFrame = CFrame.new(Camera.CFrame.Position, head.Position)
+                    local torso = player.Character:FindFirstChild("UpperTorso") or player.Character:FindFirstChild("Torso")
+                    if torso then
+                        Camera.CFrame = CFrame.new(Camera.CFrame.Position, torso.Position)
                     end
                 end
             end
+        end
+    end)
+
+    Solara.useRenderStep("AutoJump", function()
+        if autoJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            local humanoid = LocalPlayer.Character.Humanoid
+            if humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end)
+
+    Solara.useRenderStep("GodStep", function()
+        if godStep and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character:MoveTo(LocalPlayer.Character.HumanoidRootPart.Position + LocalPlayer.Character.HumanoidRootPart.CFrame.LookVector * 8)
         end
     end)
 
@@ -64,7 +81,7 @@ local function createExploitUI()
         MainUI = uiOpen and Solara.Window {
             Name = "JumpShowdownExploitUI",
             Title = "Clandestine Menu",
-            Size = UDim2.new(0, 340, 0, 420),
+            Size = UDim2.new(0, 360, 0, 480),
             BackgroundColor = Color3.fromRGB(25, 25, 25),
             Draggable = true,
             Position = UDim2.new(0.25, 0, 0.2, 0),
@@ -84,6 +101,8 @@ local function createExploitUI()
                     Solara.Toggle { Text = "Super Run", Value = superRun, OnToggle = setSuperRun },
                     Solara.Toggle { Text = "Auto Guard", Value = autoGuard, OnToggle = setAutoGuard },
                     Solara.Toggle { Text = "Aimbot (peito)", Value = aimbot, OnToggle = setAimbot },
+                    Solara.Toggle { Text = "Auto Jump", Value = autoJump, OnToggle = setAutoJump },
+                    Solara.Toggle { Text = "God Step", Value = godStep, OnToggle = setGodStep },
                 }
             }
         }
