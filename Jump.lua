@@ -1,112 +1,112 @@
--- Roblox Mobile Script: Jump Showdown Exploit GUI
--- Feito para Solara (UI framework) e compatível com celular
+-- GUI Principal
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local Frame = Instance.new("ScrollingFrame", ScreenGui)
+local UICorner = Instance.new("UICorner", Frame)
+local UIListLayout = Instance.new("UIListLayout", Frame)
+local ToggleButton = Instance.new("TextButton", ScreenGui)
 
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+-- Configurações básicas da interface
+ScreenGui.Name = "JumpShowdownUI"
+Frame.Size = UDim2.new(0, 250, 0.5, 0)
+Frame.Position = UDim2.new(0, 20, 0.2, 0)
+Frame.CanvasSize = UDim2.new(0, 0, 2, 0)
+Frame.ScrollBarThickness = 6
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+UICorner.CornerRadius = UDim.new(0, 10)
 
-local Solara = require(game.ReplicatedStorage.Solara)
+UIListLayout.Padding = UDim.new(0, 6)
 
-local function createExploitUI()
-    local uiOpen, setUiOpen = Solara.useState(true)
-    local autoFarm, setAutoFarm = Solara.useState(false)
-    local noDashCooldown, setNoDashCooldown = Solara.useState(false)
-    local infiniteWallRun, setInfiniteWallRun = Solara.useState(false)
-    local noWallRunCooldown, setNoWallRunCooldown = Solara.useState(false)
-    local noWallComboCooldown, setNoWallComboCooldown = Solara.useState(false)
-    local biggerWallComboHitbox, setBiggerWallComboHitbox = Solara.useState(false)
-    local lockOn, setLockOn = Solara.useState(false)
-    local superRun, setSuperRun = Solara.useState(false)
-    local autoGuard, setAutoGuard = Solara.useState(false)
-    local aimbot, setAimbot = Solara.useState(false)
-    local autoJump, setAutoJump = Solara.useState(false)
-    local godStep, setGodStep = Solara.useState(false)
+-- Botão de abrir/fechar
+ToggleButton.Size = UDim2.new(0, 100, 0, 40)
+ToggleButton.Position = UDim2.new(0, 20, 0.1, 0)
+ToggleButton.Text = "Abrir/Fechar"
+ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 
-    Solara.useRenderStep("SuperRun", function()
-        if superRun and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character.HumanoidRootPart.Velocity = LocalPlayer.Character.HumanoidRootPart.CFrame.LookVector * 150
+ToggleButton.MouseButton1Click:Connect(function()
+    Frame.Visible = not Frame.Visible
+end)
+
+-- Função para criar botões toggle
+local function criarToggle(nome, funcAtivar, funcDesativar)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 35)
+    btn.Text = nome .. ": OFF"
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    local ativado = false
+
+    btn.MouseButton1Click:Connect(function()
+        ativado = not ativado
+        btn.Text = nome .. (ativado and ": ON" or ": OFF")
+        btn.BackgroundColor3 = ativado and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60, 60, 60)
+        if ativado then
+            funcAtivar()
+        else
+            funcDesativar()
         end
     end)
 
-    Solara.useRenderStep("AutoGuard", function()
-        if autoGuard and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            local humanoid = LocalPlayer.Character.Humanoid
-            if humanoid:GetState() == Enum.HumanoidStateType.Freefall or humanoid:GetState() == Enum.HumanoidStateType.FallingDown then
-                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-            end
+    btn.Parent = Frame
+end
+
+-- ▼▼ Funções ▼▼
+criarToggle("Super Run", function()
+    game:GetService("RunService").Stepped:Connect(function()
+        local char = game.Players.LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = 120
         end
     end)
+end, function()
+    local char = game.Players.LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = 16
+    end
+end)
 
-    Solara.useRenderStep("Aimbot", function()
-        if aimbot then
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local torso = player.Character:FindFirstChild("UpperTorso") or player.Character:FindFirstChild("Torso")
-                    if torso then
-                        Camera.CFrame = CFrame.new(Camera.CFrame.Position, torso.Position)
+criarToggle("Aimbot", function()
+    -- Código básico de aimbot (adaptável ao jogo)
+    local camera = game.Workspace.CurrentCamera
+    local player = game.Players.LocalPlayer
+    local RunService = game:GetService("RunService")
+
+    aimbotConnection = RunService.RenderStepped:Connect(function()
+        local closest = nil
+        local shortest = math.huge
+        for _, v in pairs(game.Players:GetPlayers()) do
+            if v ~= player and v.Character and v.Character:FindFirstChild("Head") then
+                local pos, onScreen = camera:WorldToViewportPoint(v.Character.Head.Position)
+                if onScreen then
+                    local dist = (Vector2.new(pos.X, pos.Y) - Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)).magnitude
+                    if dist < shortest then
+                        shortest = dist
+                        closest = v
                     end
                 end
             end
         end
-    end)
-
-    Solara.useRenderStep("AutoJump", function()
-        if autoJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            local humanoid = LocalPlayer.Character.Humanoid
-            if humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
+        if closest and closest.Character and closest.Character:FindFirstChild("Head") then
+            camera.CFrame = CFrame.new(camera.CFrame.Position, closest.Character.Head.Position)
         end
     end)
+end, function()
+    if aimbotConnection then
+        aimbotConnection:Disconnect()
+    end
+end)
 
-    Solara.useRenderStep("GodStep", function()
-        if godStep and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character:MoveTo(LocalPlayer.Character.HumanoidRootPart.Position + LocalPlayer.Character.HumanoidRootPart.CFrame.LookVector * 8)
-        end
-    end)
+-- Crie mais toggles como esse com base nas opções da imagem:
+local fakeToggle = function() end -- Use esse para funções que ainda serão definidas
 
-    return Solara.createFragment {
-        ToggleUI = Solara.Button {
-            Text = uiOpen and "Fechar Menu" or "Abrir Menu",
-            Position = UDim2.new(0.05, 0, 0.05, 0),
-            Size = UDim2.new(0, 120, 0, 40),
-            OnClick = function() setUiOpen(not uiOpen) end,
-            BackgroundColor = Color3.fromRGB(60, 60, 60),
-            TextColor = Color3.fromRGB(255, 255, 255),
-            CornerRadius = 8
-        },
+criarToggle("Auto Farm Target", fakeToggle, fakeToggle)
+criarToggle("Auto Farm", fakeToggle, fakeToggle)
+criarToggle("No Dash Cooldown", fakeToggle, fakeToggle)
+criarToggle("Infinite WallRun", fakeToggle, fakeToggle)
+criarToggle("No Wall Run Cooldown", fakeToggle, fakeToggle)
+criarToggle("No Wall Combo Cooldown", fakeToggle, fakeToggle)
+criarToggle("Bigger Wall Combo Hitbox", fakeToggle, fakeToggle)
+criarToggle("Lock On", fakeToggle, fakeToggle)
 
-        MainUI = uiOpen and Solara.Window {
-            Name = "JumpShowdownExploitUI",
-            Title = "Clandestine Menu",
-            Size = UDim2.new(0, 360, 0, 480),
-            BackgroundColor = Color3.fromRGB(25, 25, 25),
-            Draggable = true,
-            Position = UDim2.new(0.25, 0, 0.2, 0),
-
-            Solara.Frame {
-                Size = UDim2.new(1, -20, 1, -20),
-                Padding = 10,
-                BackgroundTransparency = 1,
-                LayoutOrder = {
-                    Solara.Toggle { Text = "Auto Farm", Value = autoFarm, OnToggle = setAutoFarm },
-                    Solara.Toggle { Text = "No Dash Cooldown", Value = noDashCooldown, OnToggle = setNoDashCooldown },
-                    Solara.Toggle { Text = "Infinite WallRun", Value = infiniteWallRun, OnToggle = setInfiniteWallRun },
-                    Solara.Toggle { Text = "No Wall Run Cooldown", Value = noWallRunCooldown, OnToggle = setNoWallRunCooldown },
-                    Solara.Toggle { Text = "No Wall Combo Cooldown", Value = noWallComboCooldown, OnToggle = setNoWallComboCooldown },
-                    Solara.Toggle { Text = "Bigger WallCombo Hitbox", Value = biggerWallComboHitbox, OnToggle = setBiggerWallComboHitbox },
-                    Solara.Toggle { Text = "Lock On", Value = lockOn, OnToggle = setLockOn },
-                    Solara.Toggle { Text = "Super Run", Value = superRun, OnToggle = setSuperRun },
-                    Solara.Toggle { Text = "Auto Guard", Value = autoGuard, OnToggle = setAutoGuard },
-                    Solara.Toggle { Text = "Aimbot (peito)", Value = aimbot, OnToggle = setAimbot },
-                    Solara.Toggle { Text = "Auto Jump", Value = autoJump, OnToggle = setAutoJump },
-                    Solara.Toggle { Text = "God Step", Value = godStep, OnToggle = setGodStep },
-                }
-            }
-        }
-    }
-end
-
-return createExploitUI
+-- Interface visível inicialmente
+Frame.Visible = true
